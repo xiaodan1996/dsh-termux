@@ -1,5 +1,7 @@
 # dsh-termux
 
+English | [中文](README.zh-CN.md)
+
 A vendored **Termux (Android/arm64)** build of the DeepSeek Harness `dsh` CLI,
 patched so it actually runs on Android — plus the tooling that produces it
 reproducibly.
