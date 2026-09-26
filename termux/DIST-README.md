@@ -87,6 +87,8 @@ rm -rf "$PREFIX/lib/node_modules/dsh-termux" "$PREFIX/bin/dsh" "$PREFIX/bin/dsh-
 | `dsh-termux/transform.js`, `patch-*.cjs` | build-time provenance, kept so the four Android patches stay auditable |
 | `dsh-termux/package-lock.json` | the pinned dependency tree this build installed from |
 | `install.sh` | the installer |
+| `LICENSE` | MIT, covering this repository's own additions |
+| `THIRD-PARTY-NOTICES.md` | the upstream MIT and BSD-3-Clause notices this archive redistributes under |
 | `SHA256SUMS`, `SYMLINKS.txt` | per-file integrity data (all symlinks are relative) |
 | `NOTES.md` | the full analysis: the four Android blockers, what was patched and why |
 

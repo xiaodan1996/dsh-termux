@@ -1,4 +1,12 @@
 /*
+ * Vendored verbatim from the upstream native/system package, which is
+ * licensed BSD-3-Clause. See THIRD-PARTY-NOTICES.md at the repository root
+ * for the required copyright notice, list of conditions and disclaimer.
+ *
+ * Adding this comment does not change the compiled addon: the assembler
+ * embeds the source filename, not the source text.
+ */
+/*
  * Node-API v8 binding for asynchronous flock(LOCK_EX | LOCK_NB).
  * The caller owns fd through completion; this module never opens, duplicates,
  * closes, or explicitly unlocks it. The callback receives zero or a positive

@@ -97,15 +97,25 @@ a valid integrity check. The pin also cuts the install step from ~2–3 min to ~
 
 ## Licensing
 
-This repository is a derivative work, and the pieces carry different terms:
+This repository's own additions — the build, install and packaging scripts, the
+Termux launcher and shims, the verification scripts, and the documentation — are
+**MIT** licensed; see [`LICENSE`](LICENSE).
 
-- the `dsh` CLI and the patched files under `termux/` derive from
-  [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness),
-  which is **MIT** (© 2026 DeepSeek);
-- `termux/native-src/flock.c` is upstream's `native/system` source, published under
-  **BSD-3-Clause**;
-- the Termux patches, the launcher (`termux/lib/termux-bin.js`), the vendored
-  shims under `termux/vendor/`, and the scripts in this repository are additions.
+It is also a derivative work, and the pieces carry different terms. The notices
+those licences require are reproduced in full in
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md):
 
-No license file is included here: whoever publishes this fork should choose one
-for their own additions and preserve the two upstream notices above.
+| Component | Licence | Where it lands |
+|---|---|---|
+| DeepSeek Harness `dsh` CLI | MIT (© 2026 DeepSeek) | fetched at build time; patched by `termux/patch-*.cjs`; not redistributed in this repository, but the patch files are derivative works |
+| upstream `native/system` | BSD-3-Clause (© 2026 node-addon-landlock-run contributors) | `termux/native-src/flock.c` redistributed verbatim, and the `system.node` compiled from it |
+
+The packaged archive under Releases reproduces both notices, and additionally
+carries upstream's own `LICENSE` inside the tree.
+
+### One upstream inconsistency worth knowing
+
+`@deepseek-ai/node-addon-system` declares `BSD-3-Clause` in its `package.json` but
+ships an **MIT** licence text (byte-identical to the CLI's). The source of truth in
+the repository, `native/system/`, is genuinely BSD-3-Clause. Both texts are
+reproduced in the notices so the requirement holds under either reading.

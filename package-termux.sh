@@ -112,7 +112,15 @@ cp "$ROOT/install-termux.sh" "$DEST/install.sh"
 cp "$ASSETS/README.md" "$DEST/NOTES.md"
 sed -e "s|{{NAME}}|$NAME|g" -e "s|{{VERSION}}|$VERSION|g" -e "s|{{UPSTREAM}}|$UPSTREAM|g" \
   "$ASSETS/DIST-README.md" > "$DEST/README.md"
-ok "tree + install.sh + README.md + NOTES.md"
+
+# The archive redistributes a binary compiled from BSD-3-Clause source, whose
+# condition 2 requires the notice to accompany the distribution. Refuse to build
+# an archive without it rather than silently shipping a non-compliant one.
+for f in LICENSE THIRD-PARTY-NOTICES.md; do
+  [ -f "$ROOT/$f" ] || die "$f is missing from $ROOT; the archive would redistribute BSD-3-Clause code without its notice"
+  cp "$ROOT/$f" "$DEST/$f"
+done
+ok "tree + install.sh + README.md + NOTES.md + LICENSE + THIRD-PARTY-NOTICES.md"
 
 # --------------------------------------------- integrity data
 say "recording per-file integrity"
