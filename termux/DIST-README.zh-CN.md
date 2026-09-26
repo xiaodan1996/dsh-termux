@@ -16,6 +16,11 @@ DeepSeek 模型写成的。这不是 DeepSeek 官方产品，移植方法源自�
 
 ## 环境要求
 
+- **Termux 请用 F-Droid 版**，不是 Google Play 版。本构建是在 Termux 0.118.3 的
+  F-Droid 安装上构建并验证的，该安装自身报告 `TERMUX_APK_RELEASE=F_DROID`。Play 版早已
+  停止维护，**无法承载本构建**：它的年代早于本构建所需的 Node.js。另外，不同来源的 Termux
+  构建**使用不同的签名密钥，无法互相覆盖安装**，因此更换来源意味着卸载并丢失 `$PREFIX`
+  下的全部数据。
 - Termux，且为 **Android/arm64（aarch64）** —— 本构建与架构绑定。
   它内含为 `android-arm64` 构建或挑选的原生二进制：flock addon
   （`vendor/node-addon-system-android-arm64/bin/musl/system.node`，由上游公开的

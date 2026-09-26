@@ -102,6 +102,13 @@ Each is documented in full — with the evidence that identified it, and what is
 
 ## Requirements
 
+- **Termux from F-Droid**, not the Google Play build. Built and verified on a
+  Termux 0.118.3 F-Droid installation, which reports itself as
+  `TERMUX_APK_RELEASE=F_DROID`. The Play build is long unmaintained and cannot
+  host this: it predates the Node.js the build requires. Termux builds from
+  different sources are also signed with different keys and cannot be installed
+  over one another, so switching between them means uninstalling and losing
+  everything under `$PREFIX`.
 - Termux on **Android/arm64 (aarch64)**. The artifact carries prebuilt native
   code and cannot cross architectures.
 - Node.js >= 20 (`pkg install nodejs`), clang (`pkg install clang`) to build.
@@ -147,6 +154,11 @@ node verify/e2e-mock.mjs        # real headless agent, scripted model stream
 Deployment is verified same-origin rather than assumed: a recursive `sha256`
 manifest of every file and symlink target showed the deployed tree byte-identical
 to the build output across all 25,861 entries.
+
+Every figure above comes from one machine: **Termux 0.118.3 installed from
+F-Droid** (`TERMUX_APK_RELEASE=F_DROID`, `TERMUX_MAIN_PACKAGE_FORMAT=debian`,
+`TERMUX_IS_DEBUGGABLE_BUILD=0`), Node **v24.18.0**, Android/arm64. Termux from
+other sources was not tested, and the Play build cannot run this at all.
 
 ## Reproducibility
 

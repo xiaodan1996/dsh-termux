@@ -85,6 +85,11 @@
 
 ## 环境要求
 
+- **Termux 请用 F-Droid 版**，不是 Google Play 版。本构建是在 Termux 0.118.3 的
+  F-Droid 安装上构建并验证的，该安装自身报告 `TERMUX_APK_RELEASE=F_DROID`。Play 版早已
+  停止维护，**无法承载本构建**：它的年代早于本构建所需的 Node.js。另外，不同来源的 Termux
+  构建**使用不同的签名密钥，无法互相覆盖安装**，因此更换来源意味着卸载并丢失 `$PREFIX`
+  下的全部数据。
 - Termux，且为 **Android/arm64（aarch64）**。产物内含预编译原生代码，无法跨架构。
 - Node.js >= 20（`pkg install nodejs`）；构建需要 clang（`pkg install clang`）。
 - 构建约需 1.5 GB 空闲磁盘；安装后约 330 MB。
@@ -126,6 +131,11 @@ node verify/e2e-mock.mjs        # 真实 headless agent + 脚本化的模型流
 
 部署是**实测同源**而非假定：对每个文件与符号链接目标做递归 `sha256` 清单，显示部署树与
 构建输出在全部 25,861 个条目上**逐字节相同**。
+
+以上每一个数字都来自同一台机器：**从 F-Droid 安装的 Termux 0.118.3**
+（`TERMUX_APK_RELEASE=F_DROID`、`TERMUX_MAIN_PACKAGE_FORMAT=debian`、
+`TERMUX_IS_DEBUGGABLE_BUILD=0`）、Node **v24.18.0**、Android/arm64。
+其他来源的 Termux **未做测试**，而 Play 版根本无法运行本构建。
 
 ## 可复现性
 

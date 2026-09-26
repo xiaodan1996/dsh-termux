@@ -19,6 +19,13 @@ DeepSeek product, and the porting approach originates with the project above.
 
 ## Requirements
 
+- **Termux from F-Droid**, not the Google Play build. Built and verified on a
+  Termux 0.118.3 F-Droid installation, which reports itself as
+  `TERMUX_APK_RELEASE=F_DROID`. The Play build is long unmaintained and cannot
+  host this: it predates the Node.js the build requires. Termux builds from
+  different sources are also signed with different keys and cannot be installed
+  over one another, so switching between them means uninstalling and losing
+  everything under `$PREFIX`.
 - Termux on **Android/arm64 (aarch64)** — this build is architecture-specific.
   It carries native binaries built or selected for `android-arm64`: the flock
   addon (`vendor/node-addon-system-android-arm64/bin/musl/system.node`, compiled

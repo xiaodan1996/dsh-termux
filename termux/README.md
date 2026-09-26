@@ -182,6 +182,11 @@ reachable filesystem root, which holds on every platform it ships.
 `build-termux.sh` runs these on every build; they are re-runnable from
 `stage/dsh-termux/verify/`:
 
+Every figure above comes from one machine: **Termux 0.118.3 installed from
+F-Droid** (`TERMUX_APK_RELEASE=F_DROID`, `TERMUX_MAIN_PACKAGE_FORMAT=debian`,
+`TERMUX_IS_DEBUGGABLE_BUILD=0`), Node **v24.18.0**, Android/arm64. Termux from
+other sources was not tested, and the Play build cannot run this at all.
+
 | Check | Result |
 |---|---|
 | `dsh-termux --version` | reports `0.1.7-rc.2` |

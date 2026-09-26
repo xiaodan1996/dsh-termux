@@ -164,6 +164,11 @@ EACCES: permission denied, open '/data/data'
 
 `build-termux.sh` 每次构建都会跑这些；它们也可从 `stage/dsh-termux/verify/` 重跑：
 
+以上每一个数字都来自同一台机器：**从 F-Droid 安装的 Termux 0.118.3**
+（`TERMUX_APK_RELEASE=F_DROID`、`TERMUX_MAIN_PACKAGE_FORMAT=debian`、
+`TERMUX_IS_DEBUGGABLE_BUILD=0`）、Node **v24.18.0**、Android/arm64。
+其他来源的 Termux **未做测试**，而 Play 版根本无法运行本构建。
+
 | 检查 | 结果 |
 |---|---|
 | `dsh-termux --version` | 报告 `0.1.7-rc.2` |
