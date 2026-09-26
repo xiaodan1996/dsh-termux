@@ -1,5 +1,7 @@
 # Vendored Termux build of the `dsh` CLI
 
+English | [中文](README.zh-CN.md)
+
 Rebuilds the upstream `@deepseek-ai/dsh` release as the package `dsh-termux`,
 patched to run on Android/Termux.
 

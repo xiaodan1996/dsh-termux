@@ -129,7 +129,7 @@ ship inert prebuilds for other platforms) and refuses to pack a non-aarch64 tree
 | `install-termux.sh` | deploy to `$PREFIX` by staged copy + two renames; keeps the previous install |
 | `package-termux.sh` | assemble the archive for another device |
 | `termux/` | the patches, the vendored shims, the launcher, and every verification script |
-| `termux/README.md` | the full analysis: four blockers, verification matrix, known limitations |
+| `termux/README.md`, `termux/README.zh-CN.md` | the full analysis in English and Chinese: four blockers, verification matrix, known limitations |
 | `VERIFICATION.md` | the last recorded verification run |
 
 ## Verification

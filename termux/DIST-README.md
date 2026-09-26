@@ -1,5 +1,7 @@
 # {{NAME}}
 
+English | [中文](README.zh-CN.md)
+
 A vendored Termux build of the DeepSeek Harness `dsh` CLI (upstream
 `{{UPSTREAM}}`, packaged as `{{VERSION}}`), patched to run on Android.
 Self-contained: **no npm, no compiler, and no network access are needed on the
@@ -100,7 +102,8 @@ rm -rf "$PREFIX/lib/node_modules/dsh-termux" "$PREFIX/bin/dsh" "$PREFIX/bin/dsh-
 | `LICENSE` | MIT, covering this repository's own additions |
 | `THIRD-PARTY-NOTICES.md` | the upstream MIT and BSD-3-Clause notices this archive redistributes under |
 | `SHA256SUMS`, `SYMLINKS.txt` | per-file integrity data (all symlinks are relative) |
-| `NOTES.md` | the full analysis: the four Android blockers, what was patched and why |
+| `README.zh-CN.md` | this document in Chinese |
+| `NOTES.md`, `NOTES.zh-CN.md` | the full analysis in both languages: the four Android blockers, what was patched and why |
 
 ## Known limitations
 

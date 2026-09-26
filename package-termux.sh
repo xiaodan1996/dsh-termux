@@ -109,9 +109,23 @@ rm -rf "$DIST_ROOT"
 mkdir -p "$DEST"
 cp -a "$TREE" "$DEST/dsh-termux"
 cp "$ROOT/install-termux.sh" "$DEST/install.sh"
+# Both languages, for both documents: the archive is read by whoever downloads it,
+# and the deep analysis is the only place the evidence lives.
 cp "$ASSETS/README.md" "$DEST/NOTES.md"
-sed -e "s|{{NAME}}|$NAME|g" -e "s|{{VERSION}}|$VERSION|g" -e "s|{{UPSTREAM}}|$UPSTREAM|g" \
-  "$ASSETS/DIST-README.md" > "$DEST/README.md"
+cp "$ASSETS/README.zh-CN.md" "$DEST/NOTES.zh-CN.md"
+# The deep analysis is renamed on the way in (README -> NOTES), so its language
+# switcher must be repointed at the renamed sibling rather than at the
+# distribution README. Both patterns are unique in their source files.
+sed -i 's|\[中文\](README\.zh-CN\.md)|[中文](NOTES.zh-CN.md)|' "$DEST/NOTES.md"
+sed -i 's|\[English\](README\.md)|[English](NOTES.md)|' "$DEST/NOTES.zh-CN.md"
+grep -q 'NOTES.zh-CN.md' "$DEST/NOTES.md" || die "NOTES.md language switcher was not repointed"
+grep -q '](NOTES.md)' "$DEST/NOTES.zh-CN.md" || die "NOTES.zh-CN.md language switcher was not repointed"
+for pair in "DIST-README.md:README.md" "DIST-README.zh-CN.md:README.zh-CN.md"; do
+  src="${pair%%:*}"; out="${pair##*:}"
+  [ -f "$ASSETS/$src" ] || die "$src is missing from $ASSETS"
+  sed -e "s|{{NAME}}|$NAME|g" -e "s|{{VERSION}}|$VERSION|g" -e "s|{{UPSTREAM}}|$UPSTREAM|g" \
+    "$ASSETS/$src" > "$DEST/$out"
+done
 
 # The archive redistributes a binary compiled from BSD-3-Clause source, whose
 # condition 2 requires the notice to accompany the distribution. Refuse to build
@@ -120,7 +134,7 @@ for f in LICENSE THIRD-PARTY-NOTICES.md; do
   [ -f "$ROOT/$f" ] || die "$f is missing from $ROOT; the archive would redistribute BSD-3-Clause code without its notice"
   cp "$ROOT/$f" "$DEST/$f"
 done
-ok "tree + install.sh + README.md + NOTES.md + LICENSE + THIRD-PARTY-NOTICES.md"
+ok "tree + install.sh + README(.zh-CN) + NOTES(.zh-CN) + LICENSE + THIRD-PARTY-NOTICES.md"
 
 # --------------------------------------------- integrity data
 say "recording per-file integrity"
