@@ -1,0 +1,111 @@
+# dsh-termux
+
+A vendored **Termux (Android/arm64)** build of the DeepSeek Harness `dsh` CLI,
+patched so it actually runs on Android — plus the tooling that produces it
+reproducibly.
+
+Upstream ships no Termux channel: the package is not on npm (`npm view dsh-termux`
+→ 404), and upstream `@deepseek-ai/dsh` **cannot boot on Android as published**.
+This repository is the channel.
+
+## Why patching is needed
+
+Four Android realities break the CLI. Three arrived with 0.1.7; the fourth is
+older than it and was found only by verifying the attachment path rather than
+assuming it worked.
+
+| # | Blocker | Symptom | Fix |
+|---|---|---|---|
+| 1 | `node-addon-require-builtin` has no android binding | `host preparation failed` — boot dies immediately | a launcher that re-execs Node with `--expose-internals` (the flag is rejected in `NODE_OPTIONS`) plus a vendored shim that serves Node internals through plain `require` |
+| 2 | `flock` is platform-gated to linux/darwin | `flock is not supported on android-arm64` — **no session can be created** | bionic does provide `flock(2)`; the addon is compiled from upstream's public `native/system` source and vendored as the `android-arm64` platform package |
+| 3 | `link(2)` is denied by sepolicy | `EACCES` publishing a session | fallbacks at all four publishing sites — and note 0.1.7 **dropped the workaround 0.1.0-rc.7 carried** |
+| 4 | the attachment durability walk fsyncs up to `/` | `EACCES: permission denied, open '/data/data'` — attachments never saved | bound the walk by what the process can actually open; root-owned ancestors are already durable |
+
+Each is documented in full — with the evidence that identified it, and what is
+*not* covered — in [`termux/README.md`](termux/README.md).
+
+## Requirements
+
+- Termux on **Android/arm64 (aarch64)**. The artifact carries prebuilt native
+  code and cannot cross architectures.
+- Node.js >= 20 (`pkg install nodejs`), clang (`pkg install clang`) to build.
+- ~1.5 GB free disk to build; ~330 MB installed.
+
+## Build, install, package
+
+```sh
+./build-termux.sh 0.1.7-rc.2 1      # -> stage/dsh-termux ; installs from a pinned lockfile
+./install-termux.sh stage/dsh-termux  # -> $PREFIX/lib/node_modules/dsh-termux
+
+./package-termux.sh                 # -> dist/dsh-termux-<version>-android-arm64.tar.gz
+```
+
+`package-termux.sh` produces a self-contained archive: the target needs no npm,
+no compiler and no network. It verifies the tree's *effective* native surface
+(the files the runtime actually selects, not every `.node` file — npm packages
+ship inert prebuilds for other platforms) and refuses to pack a non-aarch64 tree.
+
+## Layout
+
+| Path | What |
+|---|---|
+| `build-termux.sh` | fetch upstream, compile the flock addon, apply patches, `npm ci`, verify |
+| `install-termux.sh` | deploy to `$PREFIX` by staged copy + two renames; keeps the previous install |
+| `package-termux.sh` | assemble the archive for another device |
+| `termux/` | the patches, the vendored shims, the launcher, and every verification script |
+| `termux/README.md` | the full analysis: four blockers, verification matrix, known limitations |
+| `VERIFICATION.md` | the last recorded verification run |
+
+## Verification
+
+The build runs its checks itself and fails loudly. Beyond boot, the suite covers
+the paths a "it starts" smoke test would miss: a real kernel flock lease, the
+hard-link fallbacks, sandbox degradation, the attachment publish chain, and a
+**full agent loop against a mock LLM with no provider key**:
+
+```sh
+cd "$PREFIX/lib/node_modules/dsh-termux"
+node verify/e2e-mock.mjs        # real headless agent, scripted model stream
+```
+
+Deployment is verified same-origin rather than assumed: a recursive `sha256`
+manifest of every file and symlink target showed the deployed tree byte-identical
+to the build output across all 25,861 entries.
+
+## Reproducibility
+
+`termux/package-lock.json` is committed and installs run with `npm ci`. Measured
+on this tree:
+
+| Build | Entries differing between two builds |
+|---|---|
+| `npm install`, unpinned | 44 |
+| `npm ci` from the committed pin | **1** — and that one is this repository's own newly added verify script, not a dependency |
+
+So all 25,843 dependency files reproduce byte-for-byte, and "rebuild and diff" is
+a valid integrity check. The pin also cuts the install step from ~2–3 min to ~23 s.
+
+## Known limitations
+
+- **Kernel sandboxing is unavailable.** Android ships no Landlock LSM, so the
+  sandbox probe reports `unusable` and only the DSH file policy applies. Helpers
+  that would run confined run unconfined instead.
+- **Sessions are rewritten forward on first open.** Opening a session written by
+  0.1.0-rc.7 migrates it to format v4.
+- The vendored flock addon is built for `android-arm64`; other architectures need
+  their own build (the recipe is arch-parameterised, the binary is not).
+
+## Licensing
+
+This repository is a derivative work, and the pieces carry different terms:
+
+- the `dsh` CLI and the patched files under `termux/` derive from
+  [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness),
+  which is **MIT** (© 2026 DeepSeek);
+- `termux/native-src/flock.c` is upstream's `native/system` source, published under
+  **BSD-3-Clause**;
+- the Termux patches, the launcher (`termux/lib/termux-bin.js`), the vendored
+  shims under `termux/vendor/`, and the scripts in this repository are additions.
+
+No license file is included here: whoever publishes this fork should choose one
+for their own additions and preserve the two upstream notices above.

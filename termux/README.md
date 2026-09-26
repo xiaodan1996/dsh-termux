@@ -1,0 +1,349 @@
+# Vendored Termux build of the `dsh` CLI
+
+Rebuilds the upstream `@deepseek-ai/dsh` release as the package `dsh-termux`,
+patched to run on Android/Termux.
+
+The upstream CLI package is **pure JavaScript** — `lib/*.js` is prebuilt esbuild
+output — so nothing in the launcher itself is a compiler port. What breaks on
+Android is a small number of places where upstream reaches for host facilities
+Android does not provide: a prebuilt native addon, a prebuilt flock binding, and
+`link(2)`.
+
+The *dependency tree* is not pure JS, though, and that is why the artifact is
+architecture-tagged: `node-pty` runs `node scripts/prebuild.js || node-gyp
+rebuild` at install time and here produced a fresh aarch64 `build/Release/pty.node`,
+and `koffi` / `esbuild` resolve to their `android-arm64` packages. The shipped
+archive therefore carries prebuilt native code and cannot cross architectures —
+see the Distribution section.
+
+## 1. The original recipe
+
+Reverse-engineered by diffing the installed `dsh-termux@0.1.0-rc.7-termux.1`
+against the upstream `@deepseek-ai/dsh@0.1.0-rc.7` tarball. The differences were
+exactly:
+
+| Change | Why |
+|---|---|
+| `name` → `dsh-termux`, `version` → `<upstream>-termux.N`, description suffix | rebrand a vendored build |
+| `bin` gains a `dsh-termux` alias | distinguish the vendored build |
+| `@img/sharp-wasm32` added as a **direct** dependency | `@deepseek-ai/dsh-attachment-local` → `sharp`, which has no android/arm64 prebuild. `sharp` selects its binary at runtime from `optionalDependencies` whose `cpu` gate is `wasm32`, so the wasm runtime is never picked transitively and must be pinned at the top level. |
+| `bundleDependencies` = every dependency | self-contained `npm pack` |
+
+`build-termux.sh` reproduces those, and adds the repairs below.
+
+## 2. Four Android blockers (three in 0.1.7, one older than it)
+
+### 2.1 No android binding for `node-addon-require-builtin`
+
+`@deepseek-ai/dsh-app-boot` installs its profile module-resolution interception by
+patching Node's internal ESM and CommonJS resolvers. It obtains those resolvers
+through the prebuilt addon `node-addon-require-builtin`, which publishes
+optional packages for darwin, linux-gnu and win32 only. On Termux the module
+throws at import time (its `createEntryApi` runs at module scope):
+
+```
+dsh: fatal uncaught exception: dsh: host preparation failed:
+No usable native binding found for node-addon-require-builtin-android-arm64 (auto)
+```
+
+**Repair.** Node's own `--expose-internals` flag exposes the same five internal
+modules through plain `require`, with every API `internalModules()` asserts on
+(`esm.getOrInitializeCascadedLoader()`, `cjs.Module._resolveFilename`,
+`helpers.getCjsConditions`, `esm/utils.getDefaultConditions`,
+`esm/resolve.defaultResolve`). The flag is rejected in `NODE_OPTIONS`, so it can
+only be given on the command line:
+
+- `lib/termux-bin.js` — new launcher; re-execs `lib/bin.js` with
+  `--expose-internals`. `lib/bin.js` must be the **main** module: it guards its
+  body with `if (import.meta.main)`, so importing it silently does nothing.
+- `vendor/node-addon-require-builtin/` — shim preserving the upstream contract
+  (`requireBuiltin`, `isAllowedInternalId`, `getBindingInfo`). It tries the real
+  native path first, so it is inert on hosts that have a binding, and only falls
+  back to `--expose-internals`. Wired in through the package's `dependencies`
+  **and** `overrides`: npm refuses an override whose spec differs from a direct
+  dependency's, and this one *is* a direct dependency of upstream dsh.
+
+The CLI's own `--version` comes from `dsh-app-boot`'s manifest, not this
+package's, so it keeps reporting the upstream version. That is deliberate: the
+same value feeds plugin peer-compatibility checks and must stay in upstream form.
+
+### 2.2 `flock` is unsupported on android-arm64
+
+`dsh-session-persistence-jsonl` (≥ 0.1.5) takes its session write lease through
+`@deepseek-ai/node-addon-system/flock`:
+
+```js
+if (platform !== 'linux' && platform !== 'darwin') throw ERR_FLOCK_UNSUPPORTED_PLATFORM
+```
+
+`process.platform` is `android`, so every session creation died:
+
+```
+dsh: flock is not supported on android-arm64
+```
+
+`SessionWriteLease.acquire` treats only `EAGAIN`/`EWOULDBLOCK` as contention and
+rethrows everything else, so this blocked *all* new sessions.
+
+**Repair.** Android's bionic libc does implement `flock(2)`; only the prebuilt
+packaging is missing, and the upstream source for the addon is public
+(`native/system/packages/entry/src/flock.c`, a ~160-line Node-API binding). The
+build compiles it with the same flags upstream uses and vendors it as the
+platform package this host resolves to
+(`@deepseek-ai/node-addon-system-android-arm64`, `bin/musl/system.node`).
+`patch-flock.cjs` then teaches `flock.js` about `android` — two precise edits,
+idempotent, and it refuses to patch if upstream wording drifts.
+
+The glibc/musl prebuilds from npm were checked first and cannot be used: glibc
+fails with `library "libc.so.6" not found`, musl with a missing
+`__errno_location`.
+
+### 2.3 `link(2)` is denied, and 0.1.7 dropped upstream's own fallback
+
+On this device the Termux data filesystem rejects hard links outright
+(`ln` → `EACCES`), which is what breaks DSH's atomic file publishing:
+
+```
+dsh: EACCES: permission denied, link '.../session.v4.jsonl.zstd.<hex>.tmp'
+     -> '.../session.v4.jsonl.zstd'
+```
+
+`dsh 0.1.0-rc.7` carried an explicit workaround, comment and all:
+
+```js
+/* Android sepolicy blocks link(2) (EACCES/EPERM); fall back to same-filesystem atomic rename */
+```
+
+The 0.1.7 rewrite kept `link(2)` and dropped the `catch`. This is an upstream
+regression on Android, not something the Termux build introduced.
+
+**Repair.** `patch-hardlink.cjs` restores a fallback at all four `link(2)`
+publishing sites, each preserving that site's own contract:
+
+| Site | Fallback | Why it is equivalent |
+|---|---|---|
+| session materialize | `rename` | the code unlinks the staged name straight after, which is what `rename` does |
+| migration / exclusive generation publish | `O_EXCL` claim + copy | there `link(2)` means "publish only if absent"; a bare `rename` would clobber, so exclusivity is kept with `open(…, "wx")` |
+| attachment alias publish | `COPYFILE_EXCL` | source must survive, so a copy; `EEXIST` still means "already published" |
+| attachment staged publish | `COPYFILE_EXCL` | same, and the staged file is unlinked right after |
+
+`dsh-fs-local` also imports `link` but never calls it.
+
+### 2.4 Attachments could never be saved (pre-existing, not a 0.1.7 regression)
+
+`@deepseek-ai/dsh-attachment-local` proves durability by fsyncing every ancestor
+of `$DSH_HOME` up to the filesystem root:
+
+```js
+await ensureDurableDirectory(home, parse(home).root);   // boundary = "/"
+```
+
+Android denies `/`, `/data` and `/data/data` to app sandboxes — they are
+system-owned and not read-permitted — so the walk dies before it ever reaches an
+entry the process owns:
+
+```
+EACCES: permission denied, open '/data/data'
+```
+
+Every attachment save therefore failed, images and plain files alike.
+`dsh 0.1.0-rc.7` ships byte-identical `ensureDurableHome` and `syncDirectory`, so
+this predates 0.1.7 and is **not** a regression from it: attachments simply never
+worked on Termux in either build.
+
+**Repair.** `patch-durable-walk.cjs` bounds the walk by what the process can
+actually open. Everything above that point is root-owned and already durable, and
+not this process's to sync; every entry the process does own is still fsynced
+exactly as before. `ensureDurableHome` is the only caller that passes the
+filesystem root as a boundary, so the change stays confined to it. Unlike the
+hard-link fallback, this one has **no upstream precedent** — upstream assumes a
+reachable filesystem root, which holds on every platform it ships.
+
+## 3. Verification
+
+`build-termux.sh` runs these on every build; they are re-runnable from
+`stage/dsh-termux/verify/`:
+
+| Check | Result |
+|---|---|
+| `dsh-termux --version` | reports `0.1.7-rc.2` |
+| profile auto-init in a fresh `DSH_HOME` | `web` and `headless` profiles initialize and compose their config tree |
+| Web GUI serves | HTTP 200, 34 KB shell, `__DSH_BOOT__` present |
+| session create + persist | `session.v4.jsonl.zstd` written, link count 1, no `.tmp` residue |
+| **full agent loop, no provider key** | `verify/e2e-mock.mjs` drives the real headless agent against `@deepseek-ai/dsh-llm-mock-server`; exit 0, mock stream echoed |
+| flock | `verify/flock-probe.mjs` acquires a real lease |
+| hard-link fallbacks | `verify/fallback-primitives.mjs` — 4/4, including that `O_EXCL` and `COPYFILE_EXCL` still refuse an existing target |
+| migration of a pre-0.1.7 session | confirmed live: a v0 artifact migrated forward to `session.v4.jsonl.zstd` while its v0 generation stayed on disk |
+| sandbox degradation | `verify/verify-termux.mjs` — 5/5: `probe()` returns `unusable`, `launcherPath()` resolves to a nonexistent binary, `grantArgs()` emits the right flags, `LocalSandboxProvider` still constructs |
+| attachment publish chain | `verify/verify-termux.mjs` — `saveFile` publishes through **both** `link(2)` fallback sites, dedupes on the `EEXIST` path, round-trips its bytes, and leaves an object with link count 1 |
+| sharp on Termux | same run: `saveImage` normalizes and stores a generated PNG, so `@img/sharp-wasm32` is genuinely wired |
+| **attachments against the real `~/.dsh`** | `verify/live-attachment-check.mjs` — 4/4: `saveImage` and `saveFile` publish to the live store and read back, and the store tree is left exactly as found (root, files and dirs). Before the durable-walk fix this is the check that dies with `EACCES: open '/data/data'` |
+| **attachment uploaded through the GUI composer** | `verify/attachment-e2e-verify.mjs` — 4/4 on a real upload: the store gained exactly one content-addressed object whose digest equals its path and which decodes as `ffd8ff` JPEG; the session log (357 zstd frames / 1,616 events decoded) carries a structural record in `agent/inbox/spliced` and `user/message` as `{attachmentId, mediaType: image/jpeg, width: 960, height: 960, bytes: 118795}` |
+
+No layer is left unverified. The composer -> store -> session-log path is covered
+by a real upload, and the verifier's own first two attempts are worth recording
+because both were wrong in instructive ways:
+
+- matching the prose word `attachment` passed trivially on a transcript that was
+  *discussing* attachments, with no attachment present at all;
+- matching event *type* names (`attach`/`image`/`upload`) reported zero, because
+  the real signal is the attachment object inside an event payload, not the type
+  of the event carrying it.
+
+Both were replaced by a structural check: an event payload must contain
+`{"attachment":{"attachmentId":"sha256:<the stored digest>",...}}`. That cannot be
+satisfied by the transcript talking about itself, which is exactly the property
+the earlier versions lacked.
+
+Every `link(2)` fallback site has now been exercised for real, not merely
+reasoned about: session materialize and the exclusive/migration publish ran live
+when 0.1.7 migrated a pre-0.1.7 session, and both attachment sites run both in
+`verify/verify-termux.mjs` and against the real `~/.dsh`. The checks were last run
+against the **deployed global install**, not only the build tree.
+
+Deployment is verified same-origin rather than assumed: a recursive `sha256`
+manifest of every file plus every symlink target showed the deployed tree
+**byte-identical** to the build output across all 25,859 entries.
+
+### Reproducibility: pinned by a committed lockfile
+
+Two independent `npm install` runs against the same upstream tarball produced
+trees differing in 44 entries (≈21 each side, plus this repo's own edited verify
+script). The affected packages were `@deepseek-ai/libreoffice-kit`,
+`@types/node`, `@smithy/signature-v4` and `bundle-name`, and the generated
+`package-lock.json` differed between runs — so the cause is **dependency version
+drift**, not npm layout noise. Upstream pins its own `@deepseek-ai/*` deps
+exactly, but the transitive tree is still resolved from ranges at install time.
+
+That made "rebuild and diff" an **invalid** integrity check, and let a later
+rebuild ship slightly different transitive versions.
+
+**This is now fixed.** `termux/package-lock.json` is committed and
+`build-termux.sh` installs from it with `npm ci`, which also verifies every
+recorded integrity hash. Measured on this tree:
+
+| Build | Entries differing between two builds |
+|---|---|
+| `npm install`, unpinned | 44 |
+| `npm ci` from the committed pin | **1** — and that one is this repo's own `verify/live-attachment-check.mjs`, not a dependency |
+
+So all 25,843 dependency files are reproduced byte-for-byte, and diffing a fresh
+build against `manifest-stage.txt` is a valid integrity check again. The pin also
+cuts the install step from ~2–3 min to ~23 s by removing version resolution.
+
+The pin records `@deepseek-ai/*` at the exact versions upstream publishes them at,
+plus the transitive tree. Regenerating it is deliberate: delete
+`termux/package-lock.json` and the next build falls back to `npm install` and
+writes a new pin.
+
+## 4. Distribution
+
+```sh
+./package-termux.sh                      # -> dist/dsh-termux-<version>-android-arm64.tar.gz
+./package-termux.sh stage/dsh-termux android-arm64
+```
+
+The archive is self-contained: the target needs no npm, no compiler and no
+network. It is **not** architecture-neutral, so the tag is in the filename and
+the script refuses to pack a tree whose native surface is not aarch64.
+
+The arch check deliberately does **not** scan every `.node` file. npm packages
+ship inert prebuilds for other platforms — `node-pty` carries darwin, win32 and
+`linux-x64` builds, and here **7 of the 12** `.node` files are ones Android never
+resolves to. A blanket "every binary must be aarch64" rule flags `linux-x64` as a
+failure, which is a false positive: that file is dead weight, not a portability
+bug. What the script asserts instead is the set the runtime actually *selects*:
+
+| Selected by | File |
+|---|---|
+| the `android-arm64` platform package | `@esbuild/android-arm64/bin/esbuild` |
+| the `android-arm64` platform package | `@koromix/koffi-android-arm64/android_arm64/koffi.node` |
+| the `android-arm64` platform package | `@deepseek-ai/node-addon-system-android-arm64/bin/musl/system.node` |
+| the vendored flock package | `vendor/node-addon-system-android-arm64/bin/musl/system.node` |
+| node-pty's platform fallback | `node-pty/build/Release/pty.node` |
+
+All five must exist and be aarch64 ELF, or packaging aborts.
+
+Portability was verified rather than assumed. Two things had to be fixed for it:
+
+- `verify/flock-probe.mjs` and `verify/fallback-primitives.mjs` hardcoded the
+  build workspace's absolute path, so they only passed on the machine that built
+  the tree. Both now use `os.tmpdir()`.
+- `verify/attachment-e2e-verify.mjs` wrote its baseline into the build workspace
+  *and dumped the user's decoded session log to a file*. The dump served no check
+  and is a privacy footgun; it is gone, and the baseline moved to `os.tmpdir()`.
+
+After that: all 16 symlinks are relative, both lockfiles record the `file:`
+dependencies as relative `vendor/...` paths, and no shipped script references the
+build workspace — verified by extracting to a directory *outside* it and checking.
+
+The archive carries `SHA256SUMS` (25,848 files) so the target's first step can be
+`sha256sum -c SHA256SUMS`.
+
+## 5. Known limitations
+
+- **Sandboxing degrades to nothing.** Landlock is a Linux LSM that Android does
+  not ship, and no `landlock-run` launcher is built. `launcherPath()` resolves a
+  nonexistent fallback and the probe reports `unusable`, which is exactly how
+  upstream designs an unavailable kernel: the file policy still applies, the
+  kernel-enforced layer does not. Expect the same `workspace-write` behaviour as
+  the previous Termux build.
+- **`dsh-termux` is not published to npm** (`npm view dsh-termux` → 404). There
+  is no upstream Termux channel to track; this tree is the channel.
+- Losing the `--expose-internals` launch path breaks boot, so invoke the build
+  through the `dsh` / `dsh-termux` bin (`lib/termux-bin.js`), not by running
+  `lib/bin.js` directly.
+- `dsh-app-boot/worker/profile-resolution-bootstrap` is an extension point for
+  out-of-tree consumers and spawns with its own `execArgv`; nothing in the
+  installed tree uses it, and it would not inherit the flag if something did.
+- **The durable-walk patch is a real behaviour change**, the only one here with
+  no upstream precedent: it narrows a durability proof to the entries the process
+  can actually fsync. Drop it and attachments stop working on Termux again;
+  nothing else in the tree depends on it.
+- **Any patch needs a restart to take effect.** A running dsh keeps the modules it
+  already loaded, so the GUI must be restarted before it sees changed code.
+
+## 6. Build, install and rollback
+
+```sh
+./build-termux.sh 0.1.7-rc.2 1          # -> stage/dsh-termux
+./install-termux.sh stage/dsh-termux    # -> $PREFIX/lib/node_modules/dsh-termux
+```
+
+### Why the artifact is a tree and not an npm tarball
+
+`npm pack` **cannot** produce a working artifact for this package, and the
+recipe's `bundleDependencies` field does not fix that: npm bundles
+`dependencies` only and never `devDependencies`, while the packages a profile
+bundle actually resolves to (`dsh-host-webserver`, `dsh-session-persistence`,
+`dsh-llm-deepseek`, `dsh-sandbox-policy`, …) are devDependencies of the CLI. A
+packed tarball is missing ~34 packages and dies with `MODULE_NOT_FOUND` on the
+first lazy import. This was verified, not assumed.
+
+So the artifact is the built tree, which is also exactly the shape the existing
+Termux install already has on disk. `install-termux.sh` deploys it by copying.
+
+`install-termux.sh` renames the previous install aside rather than deleting it
+and prints the rollback command. It also refuses to run while a dsh web instance
+is answering on `:3080` unless given `--force`, because swapping the tree under a
+running dsh can break it mid-session through lazy imports. Both bin names are
+repointed at `lib/termux-bin.js` — the previous install pointed them at
+`lib/bin.js`, which on Android cannot boot.
+
+`$DSH_HOME/profiles/node_modules` is a symlink farm from the 0.1.0-rc.7 era;
+0.1.7 resolves profile packages by runtime interception and neither creates nor
+reads it. Links into the swapped paths still resolve, and the packages 0.1.7
+dropped merely dangle.
+
+### Going back
+
+```sh
+rm -rf "$PREFIX/lib/node_modules/dsh-termux"
+mv "$PREFIX/lib/node_modules/dsh-termux.bak-<stamp>" "$PREFIX/lib/node_modules/dsh-termux"
+```
+
+or rebuild the old version with `./build-termux.sh 0.1.0-rc.7 1`.
+
+**Do not point a new build at a `DSH_HOME` whose sessions matter** before the
+migration path has been validated: opening a pre-0.1.7 session rewrites it
+forward to format v4.

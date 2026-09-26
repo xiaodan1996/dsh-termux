@@ -1,0 +1,16 @@
+# Build and packaging outputs — never commit these.
+# stage/ is a ~330 MB installed tree with node_modules; the archive is ~61 MB and
+# belongs in a Release asset instead.
+stage/
+dist/
+ref/
+out/
+
+# Local state
+backup/
+*.log
+attach-before.json
+manifest-*.txt
+
+# Scratch
+*.tmp

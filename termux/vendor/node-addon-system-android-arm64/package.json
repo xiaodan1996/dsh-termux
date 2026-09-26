@@ -1,0 +1,11 @@
+{
+  "name": "@deepseek-ai/node-addon-system-android-arm64",
+  "version": "0.1.2",
+  "private": true,
+  "description": "Android arm64 system binaries for Termux: Node-API flock addon built from the public upstream source (native/system/packages/entry/src/flock.c). No Landlock launcher: the Android kernel does not provide the Landlock LSM, so the sandbox probe reports unusable.",
+  "os": ["android"],
+  "cpu": ["arm64"],
+  "files": ["bin/"],
+  "engines": { "node": ">=20" },
+  "license": "BSD-3-Clause"
+}

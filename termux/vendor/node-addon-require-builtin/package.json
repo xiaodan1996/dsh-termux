@@ -1,0 +1,16 @@
+{
+  "name": "node-addon-require-builtin",
+  "version": "0.1.6",
+  "private": true,
+  "type": "commonjs",
+  "description": "Termux shim: reaches Node internals via --expose-internals when no native binding exists for this host (android/arm64).",
+  "main": "lib/index.js",
+  "exports": {
+    ".": { "import": "./lib/index.js", "require": "./lib/index.js", "default": "./lib/index.js" },
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "node-addon-native-custom-loader": "0.1.6"
+  }
+}
