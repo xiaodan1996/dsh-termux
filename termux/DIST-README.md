@@ -5,6 +5,12 @@ A vendored Termux build of the DeepSeek Harness `dsh` CLI (upstream
 Self-contained: **no npm, no compiler, and no network access are needed on the
 target device.**
 
+## Credits
+
+Adapted from [`Vengisk/deepseek-harness-termux`](https://github.com/Vengisk/deepseek-harness-termux)
+(MIT), the community Termux port of this CLI. See `THIRD-PARTY-NOTICES.md` and
+`NOTES.md`.
+
 ## Requirements
 
 - Termux on **Android/arm64 (aarch64)** — this build is architecture-specific.

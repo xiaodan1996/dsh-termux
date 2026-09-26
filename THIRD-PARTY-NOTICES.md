@@ -121,3 +121,48 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+---
+
+## 3. `Vengisk/deepseek-harness-termux` — MIT
+
+**Applies to:** the approach this repository is adapted from. No files from that
+project are redistributed here, so this is attribution of derivation rather than of
+copied material — but the derivation is substantive and is credited in the
+repository README:
+
+- the vendored-build shape, i.e. the `dsh-termux` package name and the
+  `<upstream>-termux.N` version scheme;
+- `--expose-internals` as the way to reach Node's internals on Android;
+- the `link(2)` → `rename` fallback for Android sepolicy
+  (their `patches/02-session-persistence-link-rename.patch`).
+
+Its `LICENSE` carries the MIT text below, attributed to the same copyright holder as
+upstream. It is byte-identical to the text in section 1 apart from a trailing
+newline.
+
+```
+MIT License
+
+Copyright (c) 2026 DeepSeek
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+Project: https://github.com/Vengisk/deepseek-harness-termux

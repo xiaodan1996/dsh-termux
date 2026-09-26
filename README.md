@@ -4,9 +4,41 @@ A vendored **Termux (Android/arm64)** build of the DeepSeek Harness `dsh` CLI,
 patched so it actually runs on Android — plus the tooling that produces it
 reproducibly.
 
-Upstream ships no Termux channel: the package is not on npm (`npm view dsh-termux`
-→ 404), and upstream `@deepseek-ai/dsh` **cannot boot on Android as published**.
-This repository is the channel.
+Upstream ships no Termux channel of its own, and `@deepseek-ai/dsh` **cannot boot
+on Android as published**. This repository is a community channel for it, adapted
+from an earlier one — see Credits below.
+
+## Credits and provenance
+
+**This project is adapted from
+[`Vengisk/deepseek-harness-termux`](https://github.com/Vengisk/deepseek-harness-termux)**
+(MIT) — a community Termux port of the DeepSeek Harness CLI. The approach here comes
+from that project, which also covers ground this repository does not.
+
+Concretely derived from it:
+
+| What | Where it appears here |
+|---|---|
+| the vendored-build shape: the `dsh-termux` package name and the `<upstream>-termux.N` version scheme | `termux/transform.js`, and the installed package name |
+| `--expose-internals` as the way to reach Node's internals on Android | `termux/lib/termux-bin.js` (their `prebuilt/bin/dsh` does the same) |
+| the `link(2)` → `rename` fallback for Android sepolicy | `termux/patch-hardlink.cjs` — the same fix as their `patches/02-session-persistence-link-rename.patch`, which also reached upstream 0.1.0-rc.7, where this repository recovered it from |
+
+New here: support for upstream **0.1.7-rc.2** (that project targets the 0.1.0 line),
+the `flock` addon compiled from source for the `node-addon-system` requirement that
+0.1.5+ introduced, the bounded attachment durability walk, a committed lockfile with
+`npm ci` for reproducible builds, the verification suite, and the self-contained
+packaging script.
+
+**Out of scope here, but handled there:** that project additionally patches the
+terminal/bash and subprocess layers, the host directory picker,
+`dsh-tool-fs-search` (ripgrep), `koffi` statx, and runs the sandbox through
+**proot** — which gives real confinement on Android, where this build's sandbox
+probe simply reports `unusable`. If you need those, use that project, or port its
+patches forward.
+
+No files from that project are redistributed here; the derivation is one of
+approach. Its licence notice is reproduced in
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
 
 ## Why patching is needed
 

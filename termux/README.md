@@ -16,6 +16,18 @@ and `koffi` / `esbuild` resolve to their `android-arm64` packages. The shipped
 archive therefore carries prebuilt native code and cannot cross architectures —
 see the Distribution section.
 
+## 0. Provenance
+
+This build is adapted from
+[`Vengisk/deepseek-harness-termux`](https://github.com/Vengisk/deepseek-harness-termux)
+(MIT), the community Termux port of the DeepSeek Harness CLI. The installed
+`dsh-termux@0.1.0-rc.7-termux.1` this work started from came from that project, and
+three of its techniques carry over: the `dsh-termux` name and `<upstream>-termux.N`
+version scheme, `--expose-internals` for reaching Node's internals on Android, and
+the `link(2)` → `rename` fallback for sepolicy. See the repository README and
+`THIRD-PARTY-NOTICES.md` for the full credit and for what that project covers that
+this one does not.
+
 ## 1. The original recipe
 
 Reverse-engineered by diffing the installed `dsh-termux@0.1.0-rc.7-termux.1`
