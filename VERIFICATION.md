@@ -1,3 +1,25 @@
+# Verification record
+
+Raw output captured while this project was built and deployed, kept as recorded.
+Every check ran on the machine and against the versions stated in the README.
+
+**Identifiers are redacted.** Session ids, the filesystem owner, and the digest
+and filename of one personal attachment are replaced with placeholders. Nothing
+else in this file is altered.
+
+Two notes, so the raw output is not misread:
+
+- In `--- post-restart state ---`, the line `same-origin: DIFFERS` is from a run
+  whose input (`manifest-stage.txt`) was not present in the working directory at
+  that moment, so the comparison never executed. The same-origin check that did run
+  is recorded below under `=== pinning outcome ===` as `IDENTICAL`, and was
+  re-verified after every subsequent change.
+- In `=== pending ===`, the GUI upload is listed as deferred. It was performed
+  afterwards; its result is the `=== end-to-end attachment (real GUI upload) ===`
+  section directly beneath it.
+
+---
+
 Termux verification report (clean rebuild + clean install)
 date      : 2026-09-26T10:48:44+08:00
 dsh       : 0.1.7-rc.2
@@ -67,12 +89,12 @@ marker echoed : true
 VERDICT       : PASS
 
 --- live session state ---
-/data/data/com.termux/files/home/.dsh/sessions/--data-data-com.termux-files-home--/session-3d54f2f9-0a7a-4973-abf0-2b2c7aa82360/:
--rw-------. 1 u0_a372 u0_a372  317 22:29:05 session.jsonl.zstd
-/data/data/com.termux/files/home/.dsh/sessions/--data-data-com.termux-files-home--/session-a70f147f-0b82-4be2-b526-98361602ad01/:
--rw-------. 1 u0_a372 u0_a372 1855828 23:09:06 session.jsonl.zstd
--rw-------. 1 u0_a372 u0_a372       0 10:43:47 session.lock
--rw-------. 1 u0_a372 u0_a372  939023 10:48:44 session.v4.jsonl.zstd
+/data/data/com.termux/files/home/.dsh/sessions/--data-data-com.termux-files-home--/<session-id-1>/:
+-rw-------. 1 <uid> <uid>  317 22:29:05 session.jsonl.zstd
+/data/data/com.termux/files/home/.dsh/sessions/--data-data-com.termux-files-home--/<session-id-2>/:
+-rw-------. 1 <uid> <uid> 1855828 23:09:06 session.jsonl.zstd
+-rw-------. 1 <uid> <uid>       0 10:43:47 session.lock
+-rw-------. 1 <uid> <uid>  939023 10:48:44 session.v4.jsonl.zstd
 
 --- live attachment check (real ~/.dsh) ---
 DSH_HOME      : /data/data/com.termux/files/home/.dsh
@@ -114,19 +136,19 @@ GUI-composer attachment upload: deferred by user; baseline recorded in attach-be
 === end-to-end attachment (real GUI upload) ===
 store root      : /data/data/com.termux/files/home/.dsh/attachments (existed at baseline: false)
 new object files: 1
-     118795  v1/objects/e9/e990221d65420b61c6af6715cc321db780ba2462b80218774793fab100bf5444
+     118795  v1/objects/<xx>/<digest>
 PASS  the store gained objects
          1 new file(s)
 PASS  a new object decodes as an image
-         jpeg 118795B  e990221d65420b61c6af6715cc321db780ba2462b80218774793fab100bf5444
-session         : session-a70f147f-0b82-4be2-b526-98361602ad01 / session.v4.jsonl.zstd
+         jpeg 118795B  <digest>
+session         : <session-id-2> / session.v4.jsonl.zstd
 frames decoded  : 361
 events          : 1622
 PASS  session log references the stored digest
-         digest e990221d65420b61... appears in the log
+         digest <digest> appears in the log
 PASS  log carries a structural attachment record
          2 event(s): agent/inbox/spliced, user/message
-         "attachment":{"attachmentId":"sha256:e990221d65420b61c6af6715cc321db780ba2462b80218774793fab100bf5444","mediaType":"image/jpeg","width":960,"height":960,"bytes":118795,"name":"379ab463-0aa7-4766-b82e-2d8221791971.png"}
+         "attachment":{"attachmentId":"sha256:<digest>","mediaType":"image/jpeg","width":960,"height":960,"bytes":118795,"name":"<uploaded-name>.png"}
 
 4/4 checks passed
 VERDICT: PASS
